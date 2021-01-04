@@ -79,13 +79,15 @@ id_s = paste0(id, "_singlets")
 id_d = paste0(id, "_PIC")
 
 #singlets
-singlet_clusters = kidney[,kidney@active.ident == sin_1 | kidney@active.ident == sin_2]
+#singlet_clusters = kidney[,kidney@active.ident == sin_1 | kidney@active.ident == sin_2]
+singlet_clusters = subset(kidney, subset = celltypesB == 'EC' | celltypesB == 'Lymphocytes')
 sin_sce = as.SingleCellExperiment(singlet_clusters)
 sin_mat = scm_import_sce_to_mat(sin_sce)
 scdb_add_mat(id_s, sin_mat)
 
 #PICs
-doublet_cluster = kidney[,kidney@active.ident == pics]
+#doublet_cluster = kidney[,kidney@active.ident == pics]
+doublet_clusters = subset(kidney, subset = celltypesB == 'EC+Lymphocyte')
 pic_sce = as.SingleCellExperiment(doublet_cluster)
 pic_mat = scm_import_sce_to_mat(pic_sce)
 scdb_add_mat(id_d, pic_mat)
@@ -132,7 +134,7 @@ tab_fn = paste(figs_dir, "lateral_gmods_s.txt", sep="/")
 gset_nm = paste0(id_s, "_lateral")
 mcell_mat_rpt_cor_anchors(mat_id=id_s, gene_anchors = genes_anchors, cor_thresh = 0.1, gene_anti = c(), tab_fn = tab_fn, sz_cor_thresh = 0.2)
 gcor_mat = read.table(tab_fn, header=T)
-foc_genes = apply(gcor_mat[, genes_anchors], 1, which.max)
+foc_genes = apply(as.matrix(gcor_mat[, genes_anchors]), 1, which.max); names(foc_genes) = rownames(gcor_mat)
 gset = gset_new_gset(sets = foc_genes, desc = "Cell cycle genes")
 scdb_add_gset(gset_nm, gset)
 mcell_mat_ignore_genes(new_mat_id = gset_nm, mat_id = id_s, ig_genes = names(foc_genes), reverse = T)
@@ -147,7 +149,7 @@ tab_fn_d = paste(figs_dir, "lateral_gmods_d.txt", sep="/")
 gset_nm_d = paste0(id_d, "_lateral")
 mcell_mat_rpt_cor_anchors(mat_id=id_d, gene_anchors = genes_anchors, cor_thresh = 0.1, gene_anti = c(), tab_fn = tab_fn_d, sz_cor_thresh = 0.2)
 gcor_mat_d = read.table(tab_fn_d, header=T)
-foc_genes_d = apply(gcor_mat_d[, genes_anchors], 1, which.max)
+foc_genes_d = apply(as.matrix(gcor_mat_d[, genes_anchors]), 1, which.max); names(foc_genes_d) = rownames(gcor_mat_d)
 gset_d = gset_new_gset(sets = foc_genes_d, desc = "Cell cycle genes")
 scdb_add_gset(gset_nm_d, gset_d)
 mcell_mat_ignore_genes(new_mat_id = gset_nm_d, mat_id = id_d, ig_genes = names(foc_genes_d), reverse = T)
@@ -157,20 +159,19 @@ mcell_plot_gset_cor_mats(gset_id = gset_nm_d, scmat_id = gset_nm_d)
 lateral_clusts_d = unique(gset_d@gene_set[genes_anchors])
 mcell_gset_remove_clusts(gset_id = gset_nm_d, filt_clusts = lateral_clusts_d, new_id = paste0(id_d, "_lateral_f"), reverse=T)
 
-
 lateral_gset_id = paste0(gset_nm, "_f")
 lateral_gset = scdb_gset(lateral_gset_id)
 marker_gset = scdb_gset(id_s)
 marker_gset = gset_new_restrict_gset(gset = marker_gset, filt_gset = lateral_gset, inverse = T, desc = "cgraph gene markers w/o lateral genes")
 scdb_add_gset(paste0(id_s, "_filtered"), marker_gset)
-message("Using ", length(marker_gset@gene_set), " genes as features") #B68 = 209/194, B/PBMC68 = 318, B64 = 192/187, integrated = 249
+message("Using ", length(marker_gset@gene_set), " genes as features") #B68 = 209/194/190, B/PBMC68 = 318, B64 = 192/187, integrated = 249
 
 lateral_gset_id_d = paste0(gset_nm_d, "_f")
 lateral_gset_d = scdb_gset(lateral_gset_id_d)
 marker_gset_d = scdb_gset(id_d)
 marker_gset_d = gset_new_restrict_gset(gset = marker_gset_d, filt_gset = lateral_gset_d, inverse = T, desc = "cgraph gene markers w/o lateral genes")
 scdb_add_gset(paste0(id_d, "_filtered"), marker_gset_d)
-message("Using ", length(marker_gset_d@gene_set), " genes as features") #B68 = 140, B/PBMC68 = 153, B64 = 57/66, integrated = 113
+message("Using ", length(marker_gset_d@gene_set), " genes as features") #B68 = 140/140/214, B/PBMC68 = 153, B64 = 57/66, integrated = 113
 
 mcell_add_cgraph_from_mat_bknn(mat_id=id_s,
                                gset_id = paste0(id_s, "_filtered"),
@@ -199,14 +200,13 @@ mcell_mc_from_coclust_balanced(
   mat_id= id_s,
   mc_id= id_s,
   K=30, min_mc_size=30, alpha=2)
-
 mcell_mc_from_coclust_balanced(
   coc_id=id_d,
   mat_id= id_d,
   mc_id= id_d,
-  K=20, min_mc_size=30, alpha=1) # changed to k = 20 and alpha = 1 for b64
+  K=30, min_mc_size=30, alpha=2) # changed to k = 20 and alpha = 1 for b64
 
- mcell_plot_outlier_heatmap(mc_id=id_s, mat_id = id_s, T_lfc=4)
+mcell_plot_outlier_heatmap(mc_id=id_s, mat_id = id_s, T_lfc=4)
 mcell_mc_split_filt(new_mc_id=id_s,
                     mc_id=id_s,
                     mat_id=id_s,
